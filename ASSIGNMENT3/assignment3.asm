@@ -1,180 +1,205 @@
-section .data
-msg1: db "1.Hex to BCD",10 
-	db "2.BCD to Hex",10
-	db "3.Exit",10
-	db "Enter your choice : ",10
-len1: equ $-msg1
+Section .data
+msg: db "Menu",0x0A
+     db	"1.HEX TO BCD",0x0A
+     db	"2.BCD TO HEX",0x0A
+     db	"3.EXIT",0x0A
+len: equ $-msg
 
-msg2: db "Enter the 4 digit hex number : ",10
+msg2: db "Please enter HEX number"
 len2: equ $-msg2
 
-msg3: db "Enter the 5 digit BCD number : ",10
+msg3: db "Please enter BCD number"
 len3: equ $-msg3
 
-msg4: db "BCD number is ",10
-len4: equ $-msg4
+result: dd 0x00000000
 
-msg5: db "Hex number is ",10
-len5: equ $-msg5
-
-newline: db 10
-newlen: equ $-newline
-
-count: db 00H
-count1: db 00H
-count2: db 00H
-cnt2: db 00H
-
-section .bss
-
-%macro scall 4                    ;macro to take input and output
-        mov rax,%1
-        mov rdi,%2
-        mov rsi,%3
-        mov rdx,%4
-        syscall
-%endmacro
+Section .bss
 choice: resb 2
-ans: resw 4
-result: resw 8
-num: resb 5
-num1: resb 9
+noh: resb 5
+nob: resb 6
+cnt: resb 1
+temp:resb 2
+temp1:resb 2
 
-section .text
+%macro scall 4
+mov rax,%1
+mov rdi,%2
+mov rsi,%3
+mov rdx,%4
+syscall
+%endmacro
+
+Section .text
 global main
 main:
+scall 1,1,msg,len
+scall 0,0,choice,2
+cmp byte[choice],31H
+je next1
 
-	scall 1,1,msg1,len1
-	scall 0,0,choice,2
+cmp byte[choice],32H
+je next2
 
-	cmp byte[choice],31H
-	je hex2bcd
-	cmp byte[choice],32H
-	je bcd2hex
-	cmp byte[choice],33H
-	je exit
+cmp byte[choice],33H
+je next3
 
-hex2bcd:
-	scall 1,1,msg2,len2
-	scall 0,1,num,5
-	call atoh
-	mov bx,0x0A
-	mov byte[count1],00
-	up11:
-		mov dx,00
-		div bx
-		push dx
-		inc byte[count1]
-		cmp ax,00
-		jne up11
-	print:
-		pop ax
-		cmp ax,09H
-		jbe next11
-		add ax,07H
-	next11:
-		add ax,30H
-		mov byte[ans],al
-		scall 1,1,ans,1
-		dec byte[count1]
-		jnz print
-		scall 1,1,newline,1
-		jmp main
-
-bcd2hex:
-	scall 1,1,msg3,len3
-	scall 0,0,num,6
-	call atoh
-		
-	mov edx,eax			
-	mov eax,00H
-	mov ebx,00H
-	mov al,dl
-	and al,0FH
-	mov bl,01H
-	mul bl
-	add dword[ans],eax
-	ror edx,4
-
-	mov eax,00H			
-	mov ebx,00H
-	mov al,dl
-	and al,0FH
-	mov bl,0AH
-	mul bl
-	add dword[ans],eax
-	ror edx,4
-
-	mov eax,00H			
-	mov ebx,00H
-	mov al,dl
-	and al,0FH
-	mov bl,64H
-	mul bl
-	add dword[ans],eax
-	ror edx,4
-
-	mov eax,00H			
-	mov ebx,00H
-	mov al,dl
-	and al,0FH
-	mov bx,03E8H
-	mul bx
-	add dword[ans],eax
-	ror edx,4
-
-	mov eax,00H			
-	mov ebx,00H
-	mov al,dl
-	and al,0FH
-	mov bx,2710H			;100,000
-	mul bx
-	add dword[ans],eax
-	
-	mov edx,dword[ans]
-	mov rdi,result
-	call htoa
-
-	scall 1,1,msg5,len5
-	scall 1,1,result,8
-	scall 1,1,newline,newlen
+next1:	scall 1,1,msg2,len2
+	scall 0,0,noh,5
+	call htob
 	jmp main
+	
+next2:	scall 1,1,msg3,len3
+	scall 0,0,nob,6
+	call btoh
+	jmp main	
+
+next3: mov rax,60
+       mov rdi,0
+       syscall	
+
 
 atoh:
-	mov rsi,num
-	mov ax,00H
-	mov byte[count1],04H
-	up1:
-		rol ax,04
-		mov bl,byte[rsi]
-		cmp bl,39H
-		jbe next1
-		sub bl,07
-	next1:
-		sub bl,30H
-		add al,bl
-		inc rsi
-		dec byte[count1]
-		jnz up1
-		ret
-	
-htoa:
-	mov byte[cnt2],08H
-	up7:
-		rol edx,04
-		mov cl,dl
-		and cl,0FH
-		cmp cl,09H
-		jbe next7
-		add cl,07
-	next7:
-		add cl,30H
-		mov byte[rdi],cl
-		inc rdi
-		dec byte[cnt2]
-		jnz up7
-	ret
+mov ax,00
+mov rsi,noh
+mov byte[cnt],4
+up:rol ax,4
+   mov bl,byte[rsi]
+   cmp bl,39H
+   jbe next
+   sub bl,07H
+next:sub bl,30H
+     add al,bl
+     inc rsi
+     dec byte[cnt]
+     jnz up
+ret
 
-exit:	mov rax,60
-	mov rdi,0
-	syscall		
+htob:
+ call atoh
+ mov bx,0x0A
+ mov byte[cnt],0
+up1:mov dx,00
+    div bx
+    push dx
+    inc byte[cnt]
+    cmp ax,0
+    jne up1
+    
+
+up2:pop dx
+   add dx,30H
+    mov word[temp],dx
+    scall 1,1,temp,2
+    dec byte[cnt]
+    jnz up2
+ret
+  
+atob:
+mov eax,00000000
+mov rsi,nob
+mov byte[cnt],5
+up3:rol eax,4
+    mov bl,byte[rsi]
+    sub bl,30H
+    add al,bl
+    inc rsi
+    dec byte[cnt]
+    jnz up3
+ret
+    
+btoh:
+call atob
+mov ebx,eax
+and eax,0x0000000f
+mov dx,0x01
+mul dx
+mov ecx,00000000H
+add ecx,eax
+ror ebx,4
+mov eax,ebx
+and eax,0x0000000f
+mov dx,0x0A
+mul dx
+add ecx,eax
+ror ebx,4
+mov eax,ebx
+and eax,0x0000000f
+mov dx,0x64
+mul dx
+add ecx,eax
+ror ebx,4
+mov eax,ebx
+and eax,0x0000000f
+mov dx,0x3E8
+mul dx
+add ecx,eax
+ror ebx,4
+mov eax,ebx
+and eax,0x0000000f
+mov dx,0x2710
+mul dx
+add ecx,eax
+mov word[temp1],cx
+
+mov rsi,temp1
+inc rsi
+mov al,byte[rsi]
+rol al,4
+and al,0x0F
+cmp al, 09
+jbe l1
+add al,07H
+
+l1:
+add al, 30H
+mov byte[temp],al
+scall 1,1,temp,1
+
+mov rsi,temp1
+inc rsi
+mov al,byte[rsi]
+rol al, 4
+and al,0x0F
+cmp al, 09
+jbe l2
+add al,07H
+
+l2:
+add al, 30H
+mov byte[temp],al
+scall 1,1,temp,1
+
+mov rsi,temp1
+mov al,byte[rsi]
+rol al,4
+and al,0x0F
+cmp al, 09
+jbe l3
+add al,07H
+
+l3:
+add al, 30H
+mov byte[temp],al
+scall 1,1,temp,1
+
+
+
+mov rsi,temp1
+mov al,byte[rsi]
+and al,0x0F
+cmp al, 09
+jbe l4
+add al,07H
+
+l4:
+add al, 30H
+mov byte[temp],al
+scall 1,1,temp,1
+ret
+
+ 
+
+    
+        
+    
+  
